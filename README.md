@@ -65,15 +65,15 @@ To select and filter mutation operator families supported by `mutmut`.
 
 ### Sub-task 3 – Mutate Source Code Using Mutmut Engine (`mutate_source_code`)
 
-To apply syntax mutations directly to a source code string using `mutmut`'s mutation engine.
+Programmatically invoke the mutmut mutation testing engine from Python using the modern command-line interface. Recent versions of mutmut expose mutation functionality through CLI commands rather than the older Context/mutate API.
 
 #### Requirements
 - Implement the function `mutate_source_code(source_code: str)` in `analysis/mutation_runner.py`.
-- Import `Context` and `mutate` from `mutmut`.
-- Instantiate a `Context` with the source code: `Context(source=source_code)`.
-- Pass this context to `mutate(context)` to produce the mutated source string.
-- Return the mutated string output.
-- Push sub-task to GitHub: [Go to GitHub Commit](#github-commit)
+- Create a temporary Python source file containing source_code.
+- Execute a mutmut command using subprocess.
+- Capture the command's stdout and stderr.
+- Return the captured output as a string.
+- Clean up any temporary files created during execution.
 
 ---
 
