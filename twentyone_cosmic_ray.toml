@@ -1,0 +1,7 @@
+[cosmic-ray]
+module-path = "card_game/card/game/TwentyOne/TwentyOne.py"
+test-command = "python -m unittest test.test_mock_TwentyOne"
+timeout = 10.0
+
+[cosmic-ray.distributor]
+name = "local"

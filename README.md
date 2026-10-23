@@ -1,115 +1,174 @@
-# CardGame Mutation Testing Lab with Mutmut
+# CardGame Mutation Testing Lab: TwentyOne Game Logic
 
 ## Introduction
 
 The application plays cards with a standard 52-card deck, with suits hearts, spades, diamonds, and clubs. The following two games are played:
 
-- [Snap](https://en.wikipedia.org/wiki/Snap_(card_game))
-- [Twenty One / Blackjack](https://en.wikipedia.org/wiki/Blackjack)
+* [Snap](https://en.wikipedia.org/wiki/Snap_\(card_game\))
+* [Twenty One / Blackjack](https://en.wikipedia.org/wiki/Blackjack)
 
-Mutation testing is a technique to assess test suite quality by injecting synthetic syntactic defects (mutants) into source code. In this lab, you will learn how to interact with the modern **`mutmut`** mutation testing framework programmatically in Python. You will define mutation configurations, target mutation operator categories, programmatically generate mutated source code, capture execution outputs, and compute mutation scores against the `CardGame` codebase.
+In this lab, you will focus specifically on the game logic of **Twenty One** implemented in `card_game/card/game/TwentyOne/TwentyOne.py`.
 
----
+Mutation testing assesses the quality and thoroughness of a test suite by injecting synthetic syntactic defects (mutants) into the source code and determining whether your unit tests detect ("kill") them. You will learn to integrate and drive both **`mutmut`** and **`cosmic-ray`** mutation testing engines programmatically in Python. You will define execution configurations, execute CLI-driven runs via subprocess, redirect output streams, initialize SQLite session databases, query worker results, and compute mutation scores.
 
 ## Instructions
 
-- Fork this project and make sure your repository is public. Then import the project into your IDE (VS Code).
-- You cannot change the signature of the provided functions or rename them.
-- You cannot interact with your peers: work individually and do your best.
-- The functions to implement are described through a set of sub-tasks.
-- Implement the functions one at a time, strictly following the order given by the sub-tasks. Do not read ahead to the following sub-tasks.
-- A sub-task can be considered complete once you are confident that the function has been implemented correctly and your unit tests pass.
-- Every time you complete a sub-task, commit and push your code.
-- At the end of the assignment, make sure you have pushed the entire project to your public repository.
+* Fork this project and ensure your repository is set to public. Then clone and open the workspace in VS Code.
 
----
+* You cannot alter the signature or name of any provided function.
+
+* You must work individually.
+
+* The functions to implement are detailed across sequential sub-tasks.
+
+* Implement the functions strictly in order. Do not skip ahead or implement later sub-tasks in advance.
+
+* A sub-task is complete once its unit tests pass cleanly.
+
+* Commit and push to GitHub after completing each sub-task.
+
+* Ensure all final changes are pushed to your public repository before submission.
 
 ## Sub-tasks
 
-Implement the required functions inside `analysis/mutation_runner.py`.
+All functions must be implemented in `analysis/mutation_runner.py`.
 
-### Sub-task 1 – Configure Mutation Parameters (`create_deck_mutation_config`)
+### Sub-task 1 – Generate Cosmic Ray Config for TwentyOne (`create_cosmic_ray_twentyone_config`)
 
-To programmatically construct a configuration targeting specific source files and unit test runners.
+To programmatically build the TOML configuration needed by Cosmic Ray to analyze `TwentyOne.py`.
 
 #### Requirements
-- Implement the function `create_deck_mutation_config()` in `analysis/mutation_runner.py`.
-- Define and return a configuration dictionary targeting the file `'card_game/card/entity/deck.py'`.
-- Set the runner command to execute the test suite:
-  ```python
-  "python -m unittest test.test_mock_Deck"
+
+* Implement the function `create_cosmic_ray_twentyone_config(config_file_path: str) -> str` in `analysis/mutation_runner.py`.
+
+* Construct a TOML configuration defining:
+
+  * `module-path`: `"card_game/card/game/TwentyOne/TwentyOne.py"`
+
+  * `test-command`: `"python -m unittest test.test_mock_TwentyOne"`
+
+  * `dist`: `"local"`
+
+  * `timeout`: `10.0`
+
+* Write this configuration to `config_file_path`.
+
+* Return the resolved absolute path of the created configuration file.
+
+* Push sub-task to GitHub: [Go to GitHub Commit](#github-commit)
+
+### Sub-task 2 – Execute Cosmic Ray Session (`run_cosmic_ray_session`)
+
+To initialize a Cosmic Ray SQLite database and run mutation test workers.
+
+#### Requirements
+
+* Implement the function `run_cosmic_ray_session(config_file: str, session_db: str) -> bool` in `analysis/mutation_runner.py`.
+
+* Use `subprocess.run(..., check=True)` to execute both steps sequentially:
+
+  1. Initialize session:
+
+     ```
+     cosmic-ray init <config_file> <session_db>
+     
+     ```
+
+  2. Execute mutation evaluation:
+
+     ```
+     cosmic-ray exec <config_file> <session_db>
+     
+     ```
+
+* Return `True` if both commands execute successfully with return code `0`.
+
+* Catch `subprocess.CalledProcessError` or `FileNotFoundError` and return `False`.
+
+* Push sub-task to GitHub: [Go to GitHub Commit](#github-commit)
+
+### Sub-task 3 – Parse Cosmic Ray Results (`parse_cosmic_ray_summary`)
+
+To query Cosmic Ray's SQLite database, tally mutant outcomes, and compute the mutation score.
+
+#### Requirements
+
+* Implement the function `parse_cosmic_ray_summary(session_db: str) -> dict` in `analysis/mutation_runner.py`.
+
+* Connect to `session_db` using `sqlite3`.
+
+* Query `work_results` for the `test_outcome` values of all completed mutation checks.
+
+* Count instances of `KILLED`, `SURVIVED`, and `TIMEOUT`.
+
+* Calculate the mutation score percentage using the formula from Sub-task 4:
+  
+
+  $$
+  \text{Score} = \left(\frac{\text{killed}}{\text{killed} + \text{survived} + \text{timeout}}\right) \times 100
+  $$
+
+* Return a summary dictionary in the format:
+
   ```
-- The dictionary must contain:
-  - `"paths_to_mutate"`: `'card_game/card/entity/deck.py'`
-  - `"runner"`: `'python -m unittest test.test_mock_Deck'`
-  - `"tests_dir"`: `'test/''`
-- Push sub-task to GitHub: [Go to GitHub Commit](#github-commit)
-
----
-
-### Sub-task 2 – Select Mutation Operator Types (`get_arithmetic_and_relational_mutator_types`)
-
-To select and filter mutation operator families supported by `mutmut`.
-
-#### Requirements
-- Implement the function `get_arithmetic_and_relational_mutator_types()` in `analysis/mutation_runner.py`.
-- In `mutmut`, mutations are grouped into families (e.g., `operator`, `comparison`, `number`, `string`).
-- Return a set containing the category identifiers for arithmetic/general operators and relational/comparison operators:
-  ```python
-  {"operator", "comparison"}
+  {
+      "total": int,
+      "killed": int,
+      "survived": int,
+      "timeout": int,
+      "score": float,  # rounded to 2 decimal places
+  }
+  
   ```
-- Ensure both `"operator"` and `"comparison"` are present in the returned collection.
-- Push sub-task to GitHub: [Go to GitHub Commit](#github-commit)
 
----
+* Push sub-task to GitHub: [Go to GitHub Commit](#github-commit)
 
-### Sub-task 3 – Mutate Source Code Using Mutmut Engine (`mutate_source_code`)
+### Sub-task 4 – Mutate Source Code via CLI Subprocess (`mutate_source_code`)
 
-Programmatically invoke the mutmut mutation testing engine from Python using the modern command-line interface. Recent versions of mutmut expose mutation functionality through CLI commands rather than the older Context/mutate API.
+To invoke the `mutmut` mutation engine programmatically from Python against a code snippet and return standard output.
 
 #### Requirements
-- Implement the function `mutate_source_code(source_code: str)` in `analysis/mutation_runner.py`.
-- Create a temporary Python source file containing source_code.
-- Execute a mutmut command using subprocess.
-- Capture the command's stdout and stderr.
-- Return the captured output as a string.
-- Clean up any temporary files created during execution.
 
----
+* Implement the function `mutate_source_code(source_code: str) -> str` in `analysis/mutation_runner.py`.
 
-### Sub-task 4 – Capture Reporter Output (`configure_quiet_reporter`)
+* Create a temporary file with a `.py` extension containing `source_code` using `tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False)`.
+
+* Execute `mutmut` via `subprocess.run()`:
+
+  ```
+  mutmut run --paths-to-mutate=<temp_file_path>
+  
+  ```
+
+* Capture and collect both `stdout` and `stderr`.
+
+* Safely remove the temporary file in a `finally` block.
+
+* Return the captured standard output as a string.
+
+* Push sub-task to GitHub: [Go to GitHub Commit](#github-commit)
+
+### Sub-task 5 – Capture Reporter Output (`configure_quiet_reporter`)
 
 To capture and direct mutation progress and summary output into a customizable buffer.
 
 #### Requirements
-- Implement the function `configure_quiet_reporter(runner_func, output_buffer)` in `analysis/mutation_runner.py`.
-- Accept a runner callable (`runner_func`) and an output buffer (`output_buffer`, e.g., `io.StringIO()`).
-- Temporarily redirect `sys.stdout` and `sys.stderr` to `output_buffer` using `contextlib.redirect_stdout` and `contextlib.redirect_stderr`.
-- Execute `runner_func()` within the redirected context.
-- Return the captured text content from `output_buffer`.
-- Push sub-task to GitHub: [Go to GitHub Commit](#github-commit)
 
----
+* Implement the function `configure_quiet_reporter(runner_func, output_buffer)` in `analysis/mutation_runner.py`.
 
-### Sub-task 5 – Execute Mutation Run & Calculate Score (`calculate_mutation_score`)
+* Accept a runner callable (`runner_func`) and an in-memory buffer (`output_buffer`, e.g., an `io.StringIO` instance).
 
-To compute the final mutation score from execution counts.
+* Redirect `sys.stdout` and `sys.stderr` to `output_buffer` using `contextlib.redirect_stdout` and `contextlib.redirect_stderr`.
 
-#### Requirements
-- Implement the function `calculate_mutation_score(killed, survived, timeout=0, suspicious=0)` in `analysis/mutation_runner.py`.
-- Compute the total number of mutants $M$:
-  $$M = \text{killed} + \text{survived} + \text{timeout} + \text{suspicious}$$
-- Calculate the mutation score percentage:
-  $$\text{Score} = \left(\frac{\text{killed}}{M}\right) \times 100$$
-- If no mutants were generated ($M = 0$), return `0.0`.
-- Return the score as a `float` rounded to two decimal places.
-- Push sub-task to GitHub: [Go to GitHub Commit](#github-commit)
+* Execute `runner_func()` within the redirected context.
 
----
+* Return the string captured in `output_buffer`.
+
+* Push sub-task to GitHub: [Go to GitHub Commit](#github-commit)
 
 ## Setup
 
-```bash
+```
 # Create virtual environment
 python -m venv .venv
 
@@ -121,34 +180,49 @@ source .venv/bin/activate
 
 # Install dependencies
 pip install --upgrade pip
-pip install mutmut pytest
-```
+pip install mutmut cosmic-ray pytest
 
----
+```
 
 ## Run Tests
 
-To verify your implementations across each sub-task:
+Verify your implementations against the test suite:
 
-```bash
-python -m unittest discover -v -s ./test/ -p test_mutation_runner.py
 ```
+python -m unittest discover -v -s ./test/ -p test_mutation_runner.py
 
----
+```
 
 ## GitHub Commit
 
 When a sub-task is completed:
+
 1. Open the VS Code terminal.
+
 2. Stage modified files:
-   ```bash
+
+   ```
    git add *
+   
    ```
-3. Commit the changes:
-   ```bash
+
+3. Commit your changes:
+
+   ```
    git commit -m "sub task <x> complete"
+   
    ```
+
 4. Push to your repository:
-   ```bash
-   git push
+
    ```
+   git push
+   
+   ```
+
+## Reference Implementation Template (`analysis/mutation_runner.py`)
+
+```
+
+
+```
